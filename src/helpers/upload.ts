@@ -6,12 +6,15 @@ import config from '@/config';
 import type { Request } from 'express';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 12 * 1024 * 1024; // 12MB
+
+// Thư mục gốc dự án (ngoài src/ và dist/)
+const UPLOAD_ROOT = path.join(__dirname, '../../..', 'uploads/image');
 
 const createStorage = (folder: string) =>
   multer.diskStorage({
     destination: (_req, _file, cb) => {
-      const dest = path.join(__dirname, '../upload/image', folder);
+      const dest = path.join(UPLOAD_ROOT, folder);
       fs.mkdirSync(dest, { recursive: true });
       cb(null, dest);
     },
@@ -48,7 +51,7 @@ export const uploadLocationImages = multer({
  */
 export const deleteLocalFile = (filePath: string): void => {
   if (!filePath || filePath.startsWith('http')) return;
-  const fullPath = path.join(__dirname, '../', filePath.replace(/^\//, ''));
+  const fullPath = path.join(__dirname, '../../..', filePath.replace(/^\//, ''));
   if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
 };
 
@@ -58,7 +61,7 @@ export const deleteLocalFile = (filePath: string): void => {
  */
 export const toPublicUrl = (absolutePath: string): string => {
   const normalized = absolutePath.replace(/\\/g, '/');
-  const idx = normalized.indexOf('/upload/');
+  const idx = normalized.indexOf('/uploads/');
   return idx !== -1 ? normalized.slice(idx) : absolutePath;
 };
 

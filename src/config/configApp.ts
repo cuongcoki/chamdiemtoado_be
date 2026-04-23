@@ -59,11 +59,9 @@ const configApp = (app: Express): void => {
   // ========================================
 
   // Parse JSON request body
-  app.use(express.json({ limit: "10mb" }));
+  app.use(express.json({ limit: "120mb" }));
 
-  // Parse URL-encoded request body (form data)
-  // extended: true cho phép parse nested objects
-  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "120mb" }));
 
   // Parse cookies từ request headers
   app.use(cookieParser());
@@ -96,17 +94,17 @@ const configApp = (app: Express): void => {
 
   // Serve static files từ folder upload
   // Set cross-origin header để FE domain khác load được ảnh
-  app.use('/upload', (_req, res, next) => {
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  app.use('/uploads', (_req, _res, next) => {
+    _res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     next();
-  }, express.static(path.join(__dirname, '../upload')));
+  }, express.static(path.join(__dirname, '../../..', 'uploads')));
 
   // ========================================
   // LOGGING
   // ========================================
 
   // Log tất cả các incoming requests
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     logger.info(`${req.method} ${req.originalUrl} - ${req.ip}`);
     next();
   });
