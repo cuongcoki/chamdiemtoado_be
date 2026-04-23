@@ -97,7 +97,7 @@ const configApp = (app: Express): void => {
   app.use('/uploads', (_req, _res, next) => {
     _res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     next();
-  }, express.static(path.join(__dirname, '../..', 'uploads')));
+  }, express.static(path.join(__dirname, '../../..', 'uploads')));
 
   // ========================================
   // LOGGING

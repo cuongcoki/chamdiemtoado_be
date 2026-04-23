@@ -9,7 +9,7 @@ const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp
 const MAX_FILE_SIZE = 12 * 1024 * 1024; // 12MB
 
 // Thư mục gốc dự án (ngoài src/ và dist/)
-const UPLOAD_ROOT = path.join(__dirname, '../..', 'uploads/image');
+const UPLOAD_ROOT = path.join(__dirname, '../../..', 'uploads/image');
 
 const createStorage = (folder: string) =>
   multer.diskStorage({
@@ -51,7 +51,7 @@ export const uploadLocationImages = multer({
  */
 export const deleteLocalFile = (filePath: string): void => {
   if (!filePath || filePath.startsWith('http')) return;
-  const fullPath = path.join(__dirname, '../..', filePath.replace(/^\//, ''));
+  const fullPath = path.join(__dirname, '../../..', filePath.replace(/^\//, ''));
   if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
 };
 
