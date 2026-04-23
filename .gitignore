@@ -14,9 +14,8 @@ logs/
 *.log
 npm-debug.log*
 
-# Upload folder (ảnh user upload)
-src/upload/image/users/
-src/upload/image/locations/
+# Upload folder (ảnh user upload - nằm ngoài src/)
+uploads/
 
 # OS
 .DS_Store
