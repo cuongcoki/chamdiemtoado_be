@@ -95,7 +95,11 @@ const configApp = (app: Express): void => {
   // ========================================
 
   // Serve static files từ folder upload
-  app.use('/upload', express.static(path.join(__dirname, '../upload')));
+  // Set cross-origin header để FE domain khác load được ảnh
+  app.use('/upload', (_req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  }, express.static(path.join(__dirname, '../upload')));
 
   // ========================================
   // LOGGING
