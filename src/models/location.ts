@@ -46,7 +46,7 @@ const imageSchema = new Schema<IImage>(
 const tieuChiSchema = new Schema<ITieuChi>(
   {
     diem:  { type: Number, default: null, min: 1, max: 5 },
-    mo_ta: { type: String, required: true, trim: true },
+    mo_ta: { type: String, default: null, trim: true },
   },
   { _id: false }
 );
@@ -57,18 +57,18 @@ const chamDiemSchema = new Schema<IChamDiem>(
     nguy_co:  {
       type: String,
       enum: ['cao', 'trung bình', 'thấp'] satisfies MucDoNguyHiem[],
-      required: true,
+      default: null
     },
-    taluy:    { type: tieuChiSchema, required: true },
-    lop_phu:  { type: tieuChiSchema, required: true },
-    loai_dat: { type: tieuChiSchema, required: true },
+    taluy:    { type: tieuChiSchema, default: null },
+    lop_phu:  { type: tieuChiSchema, default: null },
+    loai_dat: { type: tieuChiSchema, default: null },
   },
   { _id: false }
 );
 
 const locationSchema = new Schema<ILocation>(
   {
-    ten_xa:    { type: String, required: true, trim: true },
+    ten_xa:    { type: String, default: null, trim: true },
     ten_huyen: { type: String, default: null, trim: true },
     ten_tinh:  { type: String, default: null, trim: true },
 

@@ -71,7 +71,7 @@ const tieuChiValidation = (required: boolean) =>
   });
 
 export const createLocationValidation = [
-  body('ten_xa').trim().notEmpty().withMessage('Tên xã là bắt buộc'),
+  body('ten_xa').optional().trim(),
   // body('ten_huyen').trim().notEmpty().withMessage('Tên huyện là bắt buộc'),
   // body('ten_tinh').trim().notEmpty().withMessage('Tên tỉnh là bắt buộc'),
 
@@ -85,10 +85,10 @@ export const createLocationValidation = [
   body('note').optional().trim(),
 
   body('cham_diem.nguy_co')
-    .notEmpty().withMessage('Mức độ nguy hiểm (nguy_co) là bắt buộc')
+    .optional({ checkFalsy: true })
     .isIn(['cao', 'trung bình', 'thấp']).withMessage('nguy_co phải là: cao, trung bình, thấp'),
 
-  ...tieuChiValidation(true),
+  ...tieuChiValidation(false),
 
   validate,
 ];
