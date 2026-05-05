@@ -46,7 +46,6 @@ const tieuChiFields = ['do_doc', 'taluy', 'lop_phu', 'loai_dat'];
 
 const tieuChiValidation = (required: boolean) =>
   tieuChiFields.flatMap((field) => {
-    const diemChain = body(`cham_diem.${field}.diem`);
     const moTaChain = body(`cham_diem.${field}.mo_ta`);
 
     if (required) {
@@ -122,8 +121,11 @@ export const locationIdParamValidation = [
 export const getLocationsQueryValidation = [
   query('page').optional().isInt({ min: 1 }).withMessage('page phải là số nguyên >= 1'),
   query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('limit phải từ 1 đến 100'),
+  query('ten_xa').optional().trim(),
   query('muc_do_nguy_hiem')
-    .optional()
+    .optional({ checkFalsy: true })
     .isIn(['cao', 'trung bình', 'thấp']).withMessage('muc_do_nguy_hiem phải là: cao, trung bình, thấp'),
+  query('from').optional().isISO8601().withMessage('from phải là ngày hợp lệ (YYYY-MM-DD)'),
+  query('to').optional().isISO8601().withMessage('to phải là ngày hợp lệ (YYYY-MM-DD)'),
   validate,
 ];

@@ -19,7 +19,7 @@ import locationController from '@/controllers/location_controller';
 /**
  * Validations
  */
-import { uploadUserAvatar, uploadLocationImages } from '@/helpers/upload';
+import { uploadUserAvatar, uploadLocationImages, uploadBackupZip } from '@/helpers/upload';
 import {
   createUserValidation,
   updateUserValidation,
@@ -56,6 +56,8 @@ privateRouter.delete('/users', authorize('admin'), adminUserController.deleteMan
 
 // --- Location ---
 privateRouter.get('/locations/statistics', locationController.getStatistics);
+privateRouter.get('/locations/backup', authorize('admin'), locationController.backupLocations);
+privateRouter.post('/locations/import', authorize('admin'), uploadBackupZip, locationController.importLocations);
 privateRouter.get('/locations/map', locationController.getMapData);
 privateRouter.get('/locations', getLocationsQueryValidation, locationController.getLocations);
 privateRouter.get('/locations/:id', locationIdParamValidation, locationController.getLocationById);

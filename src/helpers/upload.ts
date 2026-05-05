@@ -8,8 +8,9 @@ import type { Request } from 'express';
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE = 12 * 1024 * 1024; // 12MB
 
-// Thư mục gốc dự án (ngoài src/ và dist/)
-const UPLOAD_ROOT = path.join(__dirname, '../../..', 'uploads/image');
+// Thư mục gốc dự án — process.cwd() luôn là nơi chạy lệnh node/ts-node
+export const PROJECT_ROOT = process.cwd();
+const UPLOAD_ROOT = path.join(PROJECT_ROOT, 'uploads/image');
 
 const createStorage = (folder: string) =>
   multer.diskStorage({
@@ -51,7 +52,7 @@ export const uploadLocationImages = multer({
  */
 export const deleteLocalFile = (filePath: string): void => {
   if (!filePath || filePath.startsWith('http')) return;
-  const fullPath = path.join(__dirname, '../../..', filePath.replace(/^\//, ''));
+  const fullPath = path.join(PROJECT_ROOT, filePath.replace(/^\//, ''));
   if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
 };
 
@@ -64,6 +65,19 @@ export const toPublicUrl = (absolutePath: string): string => {
   const idx = normalized.indexOf('/uploads/');
   return idx !== -1 ? normalized.slice(idx) : absolutePath;
 };
+
+// Backup ZIP upload - lưu vào memory để adm-zip đọc trực tiếp
+export const uploadBackupZip = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'application/zip' || file.originalname.endsWith('.zip')) {
+      cb(null, true);
+    } else {
+      cb(new BadRequestError('Chỉ chấp nhận file .zip'));
+    }
+  },
+}).single('backup');
 
 /**
  * Chuyển relative URL → full URL kèm domain

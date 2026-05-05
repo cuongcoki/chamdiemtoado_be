@@ -1,6 +1,10 @@
+import archiver from 'archiver';
+import AdmZip from 'adm-zip';
+import path from 'path';
+import fs from 'fs';
 import { logger } from '@/helpers/winston';
 import { BadRequestError, NotFoundError, ForbiddenError } from '@/helpers/errorHandle';
-import { deleteLocalFile, toPublicUrl, toFullUrl } from '@/helpers/upload';
+import { deleteLocalFile, toPublicUrl, toFullUrl, PROJECT_ROOT } from '@/helpers/upload';
 import Location from '@/models/location';
 import type { IImage } from '@/models/location';
 import type { Request, Response, NextFunction } from 'express';
@@ -222,10 +226,17 @@ class LocationController {
       const skip  = (page - 1) * limit;
 
       const filter: Record<string, any> = {};
-      if (req.query.ten_tinh)  filter.ten_tinh  = { $regex: req.query.ten_tinh,  $options: 'i' };
-      if (req.query.ten_huyen) filter.ten_huyen = { $regex: req.query.ten_huyen, $options: 'i' };
-      if (req.query.ten_xa)    filter.ten_xa    = { $regex: req.query.ten_xa,    $options: 'i' };
+      if (req.query.ten_xa) filter.ten_xa = { $regex: req.query.ten_xa, $options: 'i' };
       if (req.query.muc_do_nguy_hiem) filter['cham_diem.nguy_co'] = req.query.muc_do_nguy_hiem;
+      if (req.query.from || req.query.to) {
+        filter.createdAt = {};
+        if (req.query.from) filter.createdAt.$gte = new Date(req.query.from as string);
+        if (req.query.to) {
+          const to = new Date(req.query.to as string);
+          to.setHours(23, 59, 59, 999);
+          filter.createdAt.$lte = to;
+        }
+      }
       if (req.user!.role !== 'admin') filter.created_by = req.user!.userId;
 
       const [locations, total] = await Promise.all([
@@ -308,6 +319,145 @@ class LocationController {
           total,
           by_muc_do_nguy_hiem: mucDoResult,
           by_tinh: byTinh.map((x: any) => ({ ten_tinh: x._id, count: x.count })),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /locations/backup - Xuất data + ảnh thành file ZIP (admin only)
+   * Query: ?ids=id1,id2,id3  hoặc  ?from=2026-01-01&to=2026-05-05  hoặc kết hợp
+   */
+  async backupLocations(req: Request, res: Response, next: NextFunction) {
+    try {
+      const filter: Record<string, any> = {};
+
+      // Filter theo ids
+      if (req.query.ids) {
+        const ids = (req.query.ids as string).split(',').map((id) => id.trim()).filter(Boolean);
+        if (ids.length > 0) filter._id = { $in: ids };
+      }
+
+      // Filter theo date range
+      if (req.query.from || req.query.to) {
+        filter.createdAt = {};
+        if (req.query.from) filter.createdAt.$gte = new Date(req.query.from as string);
+        if (req.query.to) {
+          const to = new Date(req.query.to as string);
+          to.setHours(23, 59, 59, 999);
+          filter.createdAt.$lte = to;
+        }
+      }
+
+      const locations = await Location.find(filter)
+        .populate('created_by', 'username name')
+        .lean();
+
+      const date = new Date().toISOString().slice(0, 10);
+      res.setHeader('Content-Disposition', `attachment; filename="locations_backup_${date}.zip"`);
+      res.setHeader('Content-Type', 'application/zip');
+
+      const archive = archiver('zip', { zlib: { level: 6 } });
+      archive.on('error', (err) => next(err));
+      archive.pipe(res);
+
+      // Thêm file JSON
+      archive.append(
+        JSON.stringify({ exported_at: new Date().toISOString(), total: locations.length, data: locations }, null, 2),
+        { name: 'locations.json' }
+      );
+
+      // Thêm ảnh vào ZIP theo đúng đường dẫn
+      for (const loc of locations) {
+        const images = (loc.images ?? []) as IImage[];
+        for (const img of images) {
+          if (!img.url || img.url.startsWith('http')) continue;
+          const filePath = path.join(PROJECT_ROOT, img.url.replace(/^\//, ''));
+          if (fs.existsSync(filePath)) {
+            archive.file(filePath, { name: img.url.replace(/^\//, '') });
+          }
+        }
+      }
+
+      await archive.finalize();
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /locations/import - Import data từ file ZIP backup (admin only)
+   */
+  async importLocations(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) throw new BadRequestError('Vui lòng upload file backup .zip');
+
+      const zip = new AdmZip(req.file.buffer);
+
+      // Tìm locations.json bất kể nằm ở đâu trong ZIP
+      const jsonEntry = zip.getEntries().find((e) =>
+        !e.isDirectory && e.entryName.replace(/\\/g, '/').split('/').pop() === 'locations.json'
+      );
+      if (!jsonEntry) throw new BadRequestError('File zip không hợp lệ: thiếu locations.json');
+
+      const { data: locations } = JSON.parse(jsonEntry.getData().toString('utf8')) as {
+        data: Record<string, unknown>[];
+      };
+
+      // Giải nén ảnh vào đúng thư mục
+      let extractedCount = 0;
+      zip.getEntries().forEach((entry) => {
+        if (entry.isDirectory) return;
+        const entryName = entry.entryName.replace(/\\/g, '/');
+        const uploadsIdx = entryName.indexOf('uploads/');
+        if (uploadsIdx === -1) return;
+        const relativePath = entryName.slice(uploadsIdx); // uploads/image/locations/xxx.jpg
+        const destPath = path.join(PROJECT_ROOT, relativePath);
+        fs.mkdirSync(path.dirname(destPath), { recursive: true });
+        const data = entry.getData();
+        if (data && data.length > 0) {
+          fs.writeFileSync(destPath, data);
+          extractedCount++;
+        }
+      });
+      logger.info(`Extracted ${extractedCount} image files from ZIP`);
+
+      // Normalize URL ảnh về dạng relative /uploads/... (bỏ domain nếu có)
+      const normalizeUrl = (url: string) => {
+        const idx = url.indexOf('/uploads/');
+        return idx !== -1 ? url.slice(idx) : url;
+      };
+      const normalizedLocations = locations.map((loc: any) => ({
+        ...loc,
+        images: (loc.images ?? []).map((img: any) => ({
+          ...img,
+          url: normalizeUrl(img.url ?? ''),
+        })),
+      }));
+
+      // Upsert toàn bộ locations (trùng _id thì overwrite)
+      const ops = normalizedLocations.map((loc: any) => ({
+        updateOne: {
+          filter: { _id: loc._id as string },
+          update: { $set: { ...(loc as any) } },
+          upsert: true,
+        },
+      }));
+
+      const result = await Location.bulkWrite(ops);
+
+      logger.info(`Import ${locations.length} locations by admin`);
+
+      res.json({
+        success: true,
+        message: `Import thành công ${locations.length} location`,
+        data: {
+          total: locations.length,
+          inserted: result.upsertedCount,
+          updated: result.modifiedCount,
+          extracted_images: extractedCount,
         },
       });
     } catch (error) {
