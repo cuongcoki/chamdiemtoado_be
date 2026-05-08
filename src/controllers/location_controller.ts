@@ -102,8 +102,12 @@ class LocationController {
 
       const files = (req.files as Express.Multer.File[]) ?? [];
 
-      // Ảnh cũ muốn giữ lại
-      const existingImages: IImage[] = parseJSON(req.body.existing_images, location.images as IImage[]);
+      // Ảnh cũ muốn giữ lại — normalize về relative path để tránh lưu full URL vào DB
+      const rawExisting: IImage[] = parseJSON(req.body.existing_images, location.images as IImage[]);
+      const existingImages: IImage[] = rawExisting.map((img) => ({
+        ...img,
+        url: toPublicUrl(img.url),
+      }));
 
       // Tìm ảnh bị xóa (có trong DB nhưng không trong existing_images)
       const keepUrls = new Set(existingImages.map((img) => img.url));
