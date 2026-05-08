@@ -82,22 +82,21 @@ const configApp = (app: Express): void => {
   app.use(helmet());
 
   // ========================================
-  // RATE LIMITING
-  // ========================================
-
-  // Giới hạn số lượng request để tránh spam và DDoS
-  app.use(limiter);
-
-  // ========================================
   // STATIC FILES - UPLOAD FOLDER
   // ========================================
 
-  // Serve static files từ folder upload
-  // Set cross-origin header để FE domain khác load được ảnh
+  // Serve static files trước rate limiter để ảnh không bị tính vào quota
   app.use('/uploads', (_req, _res, next) => {
     _res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     next();
   }, express.static(path.join(__dirname, '../../..', 'uploads')));
+
+  // ========================================
+  // RATE LIMITING
+  // ========================================
+
+  // Giới hạn số lượng request API để tránh spam và DDoS
+  app.use(limiter);
 
   // ========================================
   // LOGGING
