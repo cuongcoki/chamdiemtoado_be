@@ -139,6 +139,7 @@ class LocationController {
       location.image_type = image_type;
 
       await location.save();
+      await location.populate('created_by', 'username name');
 
       logger.info(`Location updated: ${location.id} by user ${req.user!.userId}`);
 
